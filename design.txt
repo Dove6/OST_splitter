@@ -1,0 +1,60 @@
+Usage: OST_splitter [options] music_file instruction_file
+
+OPTIONS
+Metadata options:
+	 -t	[artist]					specify global artist metadata
+	--artist[=artist]
+	 -b [album-artist]				specify global album artist metadata
+	--album-artist[=album-artist]
+	 -a [album]						specify global album metadata
+	--album[=album]
+	 -G [grouping]					specify global grouping metadata
+	--grouping[=grouping]
+	 -c [composer]					specify global composer metadata
+	--composer[=composer]
+	 -y [year]						specify global year metadata
+	--year[=year]
+	 -k number						specify the first track number
+	--track-number=number
+	 -m [comment]					specify global comment metadata
+	--comment[=comment]
+	 -g [genre]						specify global genre metadata
+	--genre[=genre]
+	 -r [copyright]					specify global copyright metadata
+	--copyright[=copyright]
+	 -d [description]				specify global description metadata
+	--description[=description]
+	 -s [synopsis]					specify global synopsis metadata
+	--synopsis[=synopsis]
+	 -l [lyrics]					specify global lyrics metadata
+	--lyrics[=lyrics]
+Using a metadata option without an argument instructs program to copy certain metadata from the input music file.
+
+Format options:
+	 -o	format						output files names format (default: "k. n - a")
+	--output=format
+	 -f	format						description file format (default: "k. n - i")
+	--desc-format=format
+Available output file format escape character:
+	t	(artist)
+	b	(album artist)
+	a	(album)
+	G	(grouping)
+	c	(composer)
+	y	(year)
+	g	(genre)
+	k	(track number)
+	n	(track name)
+In a description file you can additionally use:
+	m	(comment)
+	r	(copyright)
+	d	(description)
+	s	(synopsis)
+	l	(lyrics)
+	i	(start time)
+
+Offset options:
+	 -p offset						offset in seconds after the start
+	--offset-pre=offset
+	 -e	offset						offset in second before the end
+	--offset-post=offset
