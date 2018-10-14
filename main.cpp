@@ -3,12 +3,13 @@
 #include <string>
 #include <cstring>
 #include <exception>
+#include <map>
 
 using namespace std;
 
-struct description {
-    int start; //in seconds
-    int length; //in seconds
+/*struct description {
+    unsigned int start; //in seconds
+    unsigned int length; //in seconds
     string title;
     string artist;
     string album_artist;
@@ -23,6 +24,7 @@ struct description {
     string description;
     string synopsis;
     string lyrics;
+    string command;
 };
 
 struct {
@@ -30,7 +32,7 @@ struct {
     string description_format;
     unsigned int start_offset;
     unsigned int end_offset;
-} details;
+} details;*/
 
 void print_help()
 {
@@ -49,7 +51,7 @@ void print_help()
             "    --composer[=composer]\n"
             "     -y [year]\t\t\tspecify global year metadata\n"
             "    --year[=year]\n"
-            "     -k number\t\tspecify the first track number\n"
+            "     -k number\t\tspecify the first track number (default: 1)\n"
             "    --track-number=number\n"
             "     -m [comment]\t\tspecify global comment metadata\n"
             "    --comment[=comment]\n"
@@ -95,6 +97,52 @@ void print_help()
 
 int main(int argc, char **argv)
 {
+    vector<string> metadata = {"artist",
+                               "album-artist",
+                               "album",
+                               "grouping",
+                               "composer",
+                               "year",
+                               "track-number",
+                               "comment",
+                               "genre",
+                               "copyright",
+                               "description",
+                               "synopsis",
+                               "lyrics",
+                               "title",
+                               "start-time",
+                               "length",
+                               "output", //output file name format
+                               "desc-format", //description format
+                               "offset-pre", //offset before each track (in seconds)
+                               "offset-post", //offset after the end of each track (in seconds)
+                               "tbaGcykmgrdslni\0ofpe"}; //one-letter command-line options
+    map<string, int> meta_token;
+    for (int i = 0; i < metadata.size() - 1; i++) {
+        meta_token.insert(make_pair(metadata[i], i));
+        if (metadata[metadata.size() - 1][i] != 0) {
+            meta_token.insert(make_pair(metadata[metadata.size() - 1][i], i));
+        }
+    }
+    map<string, pair<int, int>> desc_location;
+    map<string, string> global, prev, curr;
+    for (int i = 0; i < metadata.size() - 7; i++) {
+        global.insert(make_pair(metadata[i], ""));
+        prev.insert(make_pair(metadata[i], ""));
+        next.insert(make_pair(metadata[i], ""));
+    }
+    for (int i = metadata.size() - 7; i < metadata.size() - 5; i++) {
+        prev.insert(make_pair(metadata[i], ""));
+        next.insert(make_pair(metadata[i], ""));
+    }
+    for (int i = metadata.size() - 5; i < metadata.size() - 1; i++) {
+        global.insert(make_pair(metadata[i], ""));
+    }
+    unsigned int track_number = 1;
+    global["output"] = "k. n - a";
+    global["desc-format"] = "k. n - i";
+
     if (argc > 2) {
         if (system("ffmpeg -version") != 0) {
             cerr << "You have to put ffmpeg.exe in your environmental variable or where the program\nis located!";
@@ -107,8 +155,13 @@ int main(int argc, char **argv)
             return 0;
         }
         description global;
+        global.length = 0;
+        global.number = 0;
+        global.start = 0;
+        global.year = 0;
+        details.outname_format = "k. n - a";
+        details.description_format = "k. n - i";
         int field_pointer = -1;
-        bool inherited;
         try {
             for (int i = 1; i < argc - 2; i++) {
                 if (argv[i][0] == '-') {
@@ -185,6 +238,9 @@ int main(int argc, char **argv)
                                 if (i < argc - 3) {
                                     i++;
                                     details.outname_format = argv[i];
+                                    /*if (details.outname_format.first_find_not_of("") != string::npos) {
+                                        throw invalid_argument(argv[i]);
+                                    }*/
                                 } else {
                                     throw invalid_argument(argv[i]);
                                 }
@@ -384,15 +440,35 @@ int main(int argc, char **argv)
                             field_pointer = -1;
                         } else if (long_option.rfind("output", 0) == 0) {
                             //OUTPUT FORMAT
+                            if (eq_mark != string::npos) {
+                                details.outname_format = long_option.substr(eq_mark + 1);
+                            } else {
+                                throw invalid_argument(argv[i]);
+                            }
                             field_pointer = -1;
                         } else if (long_option.rfind("desc-format", 0) == 0) {
                             //DESCRIPTION FORMAT
+                            if (eq_mark != string::npos) {
+                                details.description_format = long_option.substr(eq_mark + 1);
+                            } else {
+                                throw invalid_argument(argv[i]);
+                            }
                             field_pointer = -1;
                         } else if (long_option.rfind("offset-pre", 0) == 0) {
                             //START-OFFSET
+                            if (eq_mark != string::npos) {
+                                details.start_offset = stoul(long_option.substr(eq_mark + 1));
+                            } else {
+                                throw invalid_argument(argv[i]);
+                            }
                             field_pointer = -1;
                         } else if (long_option.rfind("offset-post", 0) == 0) {
                             //END-OFFSET
+                            if (eq_mark != string::npos) {
+                                details.end_offset = stoul(long_option.substr(eq_mark + 1));
+                            } else {
+                                throw invalid_argument(argv[i]);
+                            }
                             field_pointer = -1;
                         } else {
                             switch (field_pointer) {
@@ -449,36 +525,127 @@ int main(int argc, char **argv)
                                     global.lyrics = argv[i];
                                     break;
                                 }
-                                case 13: {
-                                    //OUTPUT FORMAT
-                                    break;
-                                }
-                                case 14: {
-                                    //DESCRIPTION FORMAT
-                                    break;
-                                }
-                                case 15: {
-                                    //START-
-                                    break;
-                                }
-                                case 16: {
-                                    //END-OFFSET
-                                    break;
-                                }
                                 default: {
-                                    cerr << "Wrong argument: " << argv[i];
-                                    return 0;
+                                    throw invalid_argument(argv[i]);
                                 }
                             }
                             field_pointer = -1;
                         }
                     }
+                } else {
+                    switch (field_pointer) {
+                        case 0: {
+                            global.artist = argv[i];
+                            break;
+                        }
+                        case 1: {
+                            global.album_artist = argv[i];
+                            break;
+                        }
+                        case 2: {
+                            global.album = argv[i];
+                            break;
+                        }
+                        case 3: {
+                            global.grouping = argv[i];
+                            break;
+                        }
+                        case 4: {
+                            global.composer = argv[i];
+                            break;
+                        }
+                        case 5: {
+                            global.year = stoi(argv[i]);
+                            break;
+                        }
+                        case 6: {
+                            //TRACK NUMBER
+                            global.number = stoi(argv[i]);
+                            break;
+                        }
+                        case 7: {
+                            global.comment = argv[i];
+                            break;
+                        }
+                        case 8: {
+                            global.genre = argv[i];
+                            break;
+                        }
+                        case 9: {
+                            global.copyright = argv[i];
+                            break;
+                        }
+                        case 10: {
+                            global.description = argv[i];
+                            break;
+                        }
+                        case 11: {
+                            global.synopsis = argv[i];
+                            break;
+                        }
+                        case 12: {
+                            global.lyrics = argv[i];
+                            break;
+                        }
+                        default: {
+                            throw invalid_argument(argv[i]);
+                        }
+                    }
+                    field_pointer = -1;
                 }
             }
         } catch (invalid_argument exc) {
             cerr << "Wrong argument: " << exc.what();
             return 0;
         }
+
+        cout << "global:\n"
+            "\t(unsigned int)start=" << global.start << "\n"
+            "\t(unsigned int)length=" << global.length << "\n"
+            "\t(string)title=" << global.title << "\n"
+            "\t(string)artist=" << global.artist << "\n"
+            "\t(string)album_artist=" << global.album_artist << "\n"
+            "\t(string)album=" << global.album << "\n"
+            "\t(string)grouping=" << global.grouping << "\n"
+            "\t(string)composer=" << global.composer << "\n"
+            "\t(short)year=" << global.year << "\n"
+            "\t(int)number=" << global.number << "\n"
+            "\t(string)comment=" << global.comment << "\n"
+            "\t(string)genre=" << global.genre << "\n"
+            "\t(string)copyright=" << global.copyright << "\n"
+            "\t(string)description=" << global.description << "\n"
+            "\t(string)synopsis=" << global.synopsis << "\n"
+            "\t(string)lyrics=" << global.lyrics << "\n\n";
+
+        cout << "details:\n"
+            "\t(string)outname_format=" << details.outname_format << "\n"
+            "\t(string)description_format=" << details.description_format << "\n"
+            "\t(unsigned int)start_offset=" << details.start_offset << "\n"
+            "\t(unsigned int)end_offset=" << details.end_offset << "\n";
+
+        cout << "\nTest #1 zakonczony\n";
+        return 0;
+
+        struct {
+            pair start; //i
+            pair title; //n
+            pair artist; //t
+            pair album_artist; //b
+            pair album; //a
+            pair grouping; //G
+            pair composer; //c
+            pair year; //y
+            pair number; //k
+            pair comment; //m
+            pair genre; //g
+            pair copyright; //r
+            pair description; //d
+            pair synopsis; //s
+            pair lyrics; //l
+        } desc_locations;
+
+
+
         for (int i = 1; i < argc; i += 2) {
             description prev, curr;
             int mins, secs;

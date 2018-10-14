@@ -14,7 +14,7 @@ Metadata options:
 	--composer[=composer]
 	 -y [year]						specify global year metadata
 	--year[=year]
-	 -k number						specify the first track number
+	 -k number						specify the first track number (default: 1)
 	--track-number=number
 	 -m [comment]					specify global comment metadata
 	--comment[=comment]
