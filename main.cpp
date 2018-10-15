@@ -70,21 +70,44 @@ void print_help()
             "    --offset-post[=offset]\n";
 }
 
+struct char_int {
+    char c;
+    int i;
+    char_int(char c, int i)
+        : c(c), i(i) {}
+};
+
+struct string_int {
+    string s;
+    int i;
+    string_int(string s, int i)
+        : s(s), i(i) {}
+};
+
 struct {
-    map<string, int> meta_token(const vector<string> &metadata, const vector<string> &options)
+    const map<const string, const char_int> meta_long(const vector<string> &metadata, const vector<string> &options)
     {
-        vector<string>::size_type md_size = metadata.size();
-        vector<string>::size_type opt_size = options.size();
-        map<string, int> m;
+        const vector<string>::size_type md_size = metadata.size();
+        const vector<string>::size_type opt_size = options.size();
+        map<const string, const char_int> m;
         for (unsigned i = 0; i < md_size - 1; i++) {
-            m.insert(make_pair(metadata[i], i));
-            if (metadata[md_size - 1][i] != 0) {
-                m.insert(make_pair(string(1, metadata[md_size - 1][i]), i));
-            }
+            m.insert(make_pair(metadata[i], char_int(metadata.back()[i], i)));
         }
         for (unsigned i = 0; i < opt_size - 1; i++) {
-            m.insert(make_pair(options[i], i));
-            m.insert(make_pair(string(1, options[opt_size - 1][i]), i));
+            m.insert(make_pair(options[i], char_int(options.back()[i], i)));
+        }
+        return m;
+    }
+    const map<const char, const string_int> meta_token(const vector<string> &metadata, const vector<string> &options)
+    {
+        const vector<string>::size_type md_size = metadata.size();
+        const vector<string>::size_type opt_size = options.size();
+        map<const char, const string_int> m;
+        for (unsigned i = 0; i < md_size - 2; i++) {
+            m.insert(make_pair(metadata.back()[i], string_int(metadata[i], i)));
+        }
+        for (unsigned i = 0; i < opt_size - 1; i++) {
+            m.insert(make_pair(options.back()[i], string_int(options[i], i)));
         }
         return m;
     }
@@ -114,16 +137,14 @@ int main(int argc, char **argv)
                                     "offset-pre", //offset before each track (in seconds)
                                     "offset-post", //offset after the end of each track (in seconds)}
                                     "ofpe"};
-    const map<string, int> meta_token = init.meta_token(metadata, options);
-    map<string, string> desc_pre;
+    const map<const string, const char_int> meta_long = init.meta_long(metadata, options);
+    const map<const char, const string_int> meta_token = init.meta_token(metadata, options);
     map<string, string> global, prev, curr;
     for (unsigned i = 0; i < metadata.size() - 3; i++) {
         global.insert(make_pair(metadata[i], ""));
         prev.insert(make_pair(metadata[i], ""));
         curr.insert(make_pair(metadata[i], ""));
-        desc_pre.insert(make_pair(metadata[i], "\032"));
     }
-    desc_pre.insert(make_pair(metadata[metadata.size() - 3], "\032"));
     for (unsigned i = metadata.size() - 3; i < metadata.size() - 1; i++) {
         prev.insert(make_pair(metadata[i], ""));
         curr.insert(make_pair(metadata[i], ""));
@@ -151,14 +172,14 @@ int main(int argc, char **argv)
             for (int i = 1; i < argc - 2; i++) {
                 if (argv[i][0] == '-') {
                     if (strlen(argv[i]) == 2) {
-                        if ((metadata.end() - 1)->find(argv[i][1]) != string::npos) {
+                        if (metadata.back().find(argv[i][1]) != string::npos) {
                             global[string(1, argv[i][1])] = "\032";
-                            open_token = meta_token.at(string(1, argv[i][1]));
+                            open_token = meta_token.at(argv[i][1]).i;
                         } else {
-                            string::size_type opt_pos = (options.end() - 1)->find(argv[i][1]);
+                            string::size_type opt_pos = options.back().find(argv[i][1]);
                             if (opt_pos != string::npos) {
                                 if (i < argc - 3) {
-                                    global[options[meta_token.at(options[opt_pos])]] = argv[++i];
+                                    global[options[opt_pos]] = argv[++i];
                                 } else {
                                     throw invalid_argument(argv[i]);
                                 }
@@ -251,35 +272,32 @@ int main(int argc, char **argv)
 
         cout << "\nTest #1 zakonczony\n\n";
 
-        for (unsigned i = 0; i < (metadata.end() - 1)->size() - 1; i++) {
-            string::difference_type cnt = count(global["desc-format"].begin(), global["desc-format"].end(), (metadata.end() - 1)->at(i));
+        for (unsigned i = 0; i < metadata.back().size() - 1; i++) {
+            string::difference_type cnt = count(global["desc-format"].begin(), global["desc-format"].end(), metadata.back().at(i));
             if (cnt > 1) {
                 cerr << "Invalid argument: " << global["desc-format"] << endl;
                 return 0;
             }
         }
-        vector<string> desc_order;
+        vector<char> desc_order;
+        vector<string> desc_pre;
         desc_order.reserve(15);
         for (unsigned i = 0; i < global["desc-format"].size();) {
-            string::size_type token_pos = global["desc-format"].find_first_of(*(metadata.end() - 1), i);
+            string::size_type token_pos = global["desc-format"].find_first_of(metadata.back(), i);
             if (token_pos != string::npos) {
-                desc_order.push_back(global["desc-format"].substr(token_pos, 1));
-                desc_pre.at(metadata[meta_token.at(*(desc_order.end() - 1))]) = global["desc-format"].substr(i, token_pos - i);
+                desc_order.push_back(global["desc-format"][token_pos]);
+                desc_pre.push_back(global["desc-format"].substr(i, token_pos - i));
                 i = token_pos + 1;
             } else {
                 i += global["desc-format"].size();
             }
         }
-        for (int i = 0; i < metadata.size() - 2; i++) {
-            cout << metadata[i];
-            if (desc_pre.at(metadata[i]) != "\032") {
-                cout << " preceded by: \"" << desc_pre[metadata[i]] << "\"" << endl;
-            } else {
-                cout << endl;
-            }
+        cout << "desc-format includes:" << endl;
+        for (unsigned i = 0; i < desc_order.size(); i++) {
+            cout << "\t" << meta_token.at(desc_order[i]).s << " preceded by: \"" << desc_pre[i] << "\"" << endl;
         }
 
-        cout << "\nTest #2 zakonczony\n\n";
+        cout << "\nTest #2 zakonczony" << endl;
         return 0;
 
         /*for (int i = 1; i < argc; i += 2) {
