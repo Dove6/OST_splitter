@@ -1,8 +1,11 @@
 # depslib dependency file v1.0
-1539480216 source:e:\programowanie\ost_splitter\main.cpp
+1539617970 source:e:\programowanie\ost_splitter\main.cpp
 	<iostream>
 	<fstream>
 	<string>
 	<cstring>
 	<exception>
+	<vector>
+	<map>
+	<algorithm>
 
