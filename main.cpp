@@ -139,27 +139,28 @@ int main(int argc, char **argv)
                                     "ofpe"};
     const map<const string, const char_int> meta_long = init.meta_long(metadata, options);
     const map<const char, const string_int> meta_token = init.meta_token(metadata, options);
-    map<string, string> global, prev, curr;
+    map<string, string> global;
     for (unsigned i = 0; i < metadata.size() - 3; i++) {
         global.insert(make_pair(metadata[i], ""));
-        prev.insert(make_pair(metadata[i], ""));
-        curr.insert(make_pair(metadata[i], ""));
-    }
-    for (unsigned i = metadata.size() - 3; i < metadata.size() - 1; i++) {
-        prev.insert(make_pair(metadata[i], ""));
-        curr.insert(make_pair(metadata[i], ""));
     }
     for (unsigned i = 0; i < options.size() - 1; i++) {
         global.insert(make_pair(options[i], ""));
     }
-    unsigned int track_number = 1;
-    global["output"] = "k. n - a";
-    global["desc-format"] = "k. n - i";
+    global.at("output") = "k. n - a";
+    global.at("desc-format") = "k. n - i";
 
     if (argc > 2) {
         if (system("ffmpeg -version") != 0) {
             cerr << "You have to put ffmpeg.exe in your environmental variable or where the program\nis located!";
             return 0;
+        }
+        {
+            ifstream mus_file;
+            mus_file.open(argv[argc - 2]);
+            if (!mus_file.good()) {
+                cerr << "Error opening audio file!";
+                return 0;
+            }
         }
         ifstream desc_file;
         desc_file.open(argv[argc - 1]);
@@ -173,19 +174,19 @@ int main(int argc, char **argv)
                 if (argv[i][0] == '-') {
                     if (strlen(argv[i]) == 2) {
                         if (metadata.back().find(argv[i][1]) != string::npos) {
-                            global[string(1, argv[i][1])] = "\032";
+                            global.at(meta_token.at(argv[i][1]).s) = "\032";
                             open_token = meta_token.at(argv[i][1]).i;
                         } else {
                             string::size_type opt_pos = options.back().find(argv[i][1]);
                             if (opt_pos != string::npos) {
                                 if (i < argc - 3) {
-                                    global[options[opt_pos]] = argv[++i];
+                                    global.at(options[opt_pos]) = argv[++i];
                                 } else {
                                     throw invalid_argument(argv[i]);
                                 }
                             } else {
                                 if (open_token != -1) {
-                                    global[metadata[open_token]] = argv[i];
+                                    global.at(metadata[open_token]) = argv[i];
                                 } else {
                                     throw invalid_argument(argv[i]);
                                 }
@@ -200,9 +201,9 @@ int main(int argc, char **argv)
                             if (long_option.rfind(metadata[i], 0) == 0) {
                                 string_hit = true;
                                 if (eq_mark != string::npos) {
-                                    global[metadata[i]] = long_option.substr(eq_mark + 1);
+                                    global.at(metadata[i]) = long_option.substr(eq_mark + 1);
                                 } else {
-                                    global[metadata[i]] = "\032";
+                                    global.at(metadata[i]) = "\032";
                                 }
                                 open_token = -1;
                             }
@@ -212,16 +213,16 @@ int main(int argc, char **argv)
                                 if (long_option.rfind(options[i], 0) == 0) {
                                     string_hit = true;
                                     if (eq_mark != string::npos) {
-                                        global[options[i]] = long_option.substr(eq_mark + 1);
+                                        global.at(options[i]) = long_option.substr(eq_mark + 1);
                                     } else {
-                                        global[options[i]] = "\032";
+                                        global.at(options[i]) = "\032";
                                     }
                                     open_token = -1;
                                 }
                             }
                             if (!string_hit) {
                                 if (open_token != -1) {
-                                    global[metadata[open_token]] = argv[i];
+                                    global.at(metadata[open_token]) = argv[i];
                                 } else {
                                     throw invalid_argument(argv[i]);
                                 }
@@ -230,7 +231,7 @@ int main(int argc, char **argv)
                         }
                     } else {
                         if (open_token != -1) {
-                            global[metadata[open_token]] = argv[i];
+                            global.at(metadata[open_token]) = argv[i];
                         } else {
                             throw invalid_argument(argv[i]);
                         }
@@ -238,7 +239,7 @@ int main(int argc, char **argv)
                     }
                 } else {
                     if (open_token != -1) {
-                        global[metadata[open_token]] = argv[i];
+                        global.at(metadata[open_token]) = argv[i];
                     } else {
                         throw invalid_argument(argv[i]);
                     }
@@ -250,100 +251,203 @@ int main(int argc, char **argv)
             return 0;
         }
 
+        /*if (global.at("desc-format") != "") {
+            unsigned i = global.at("desc-format").find('\0');
+            for (; i != string::npos; i = global.at("desc-format").find('\0', i + 1)) {
+                global.at("desc-format").erase(i);
+            }
+        }*/
+
         cout << "global:\n"
-            "\ttitle=" << global["title"] << "\n"
-            "\tartist=" << global["artist"] << "\n"
-            "\talbum-artist=" << global["album-artist"] << "\n"
-            "\talbum=" << global["album"] << "\n"
-            "\tgrouping=" << global["grouping"] << "\n"
-            "\tcomposer=" << global["composer"] << "\n"
-            "\tyear=" << global["year"] << "\n"
-            "\tnumber=" << global["track-number"] << "\n"
-            "\tcomment=" << global["comment"] << "\n"
-            "\tgenre=" << global["genre"] << "\n"
-            "\tcopyright=" << global["copyright"] << "\n"
-            "\tdescription=" << global["description"] << "\n"
-            "\tsynopsis=" << global["synopsis"] << "\n"
-            "\tlyrics=" << global["lyrics"] << "\n"
-            "\toutput=" << global["output"] << "\n"
-            "\tdesc-format=" << global["desc-format"] << "\n"
-            "\toffset-pre=" << global["offset-pre"] << "\n"
-            "\toffset-post=" << global["offset-post"] << "\n";
+            "\ttitle=" << global.at("title") << "\n"
+            "\tartist=" << global.at("artist") << "\n"
+            "\talbum-artist=" << global.at("album-artist") << "\n"
+            "\talbum=" << global.at("album") << "\n"
+            "\tgrouping=" << global.at("grouping") << "\n"
+            "\tcomposer=" << global.at("composer") << "\n"
+            "\tyear=" << global.at("year") << "\n"
+            "\ttrack-number=" << global.at("track-number") << "\n"
+            "\tcomment=" << global.at("comment") << "\n"
+            "\tgenre=" << global.at("genre") << "\n"
+            "\tcopyright=" << global.at("copyright") << "\n"
+            "\tdescription=" << global.at("description") << "\n"
+            "\tsynopsis=" << global.at("synopsis") << "\n"
+            "\tlyrics=" << global.at("lyrics") << "\n"
+            "\toutput=" << global.at("output") << "\n"
+            "\tdesc-format=" << global.at("desc-format") << "\n"
+            "\toffset-pre=" << global.at("offset-pre") << "\n"
+            "\toffset-post=" << global.at("offset-post") << "\n";
 
         cout << "\nTest #1 zakonczony\n\n";
 
         for (unsigned i = 0; i < metadata.back().size() - 1; i++) {
-            string::difference_type cnt = count(global["desc-format"].begin(), global["desc-format"].end(), metadata.back().at(i));
+            string::difference_type cnt = count(global.at("desc-format").begin(), global.at("desc-format").end(), metadata.back().at(i));
             if (cnt > 1) {
-                cerr << "Invalid argument: " << global["desc-format"] << endl;
+                cerr << "Invalid argument: " << global.at("desc-format") << endl;
                 return 0;
             }
         }
         vector<char> desc_order;
         vector<string> desc_pre;
         desc_order.reserve(15);
-        for (unsigned i = 0; i < global["desc-format"].size();) {
-            string::size_type token_pos = global["desc-format"].find_first_of(metadata.back(), i);
-            if (token_pos != string::npos) {
-                desc_order.push_back(global["desc-format"][token_pos]);
-                desc_pre.push_back(global["desc-format"].substr(i, token_pos - i));
-                i = token_pos + 1;
-            } else {
-                i += global["desc-format"].size();
+        desc_pre.reserve(16);
+        {
+            unsigned i = 0;
+            for (; i < global.at("desc-format").size(); ) {
+                string::size_type token_pos = global.at("desc-format").find_first_of(metadata.back(), i);
+                if (token_pos != string::npos) {
+                    desc_order.push_back(global.at("desc-format")[token_pos]);
+                    desc_pre.push_back(global.at("desc-format").substr(i, token_pos - i));
+                    i = token_pos + 1;
+                } else {
+                    i += global.at("desc-format").size();
+                }
+            }
+            desc_pre.push_back(global.at("desc-format").substr(i));
+            desc_pre.back() += '\n';
+        }
+
+        {
+            string::difference_type cnt = count(desc_pre.begin() + 1, desc_pre.end() - 1, "");
+            if (cnt > 0) {
+                cerr << "Invalid argument: " << global.at("desc-format") << endl;
+                cerr << "Please just separate the escape characters and let me sleep tonight ;-;" << endl;
+                return 0;
             }
         }
+
+        for (char c : desc_order) {
+            if (c != meta_long.at("start-time").c) {
+                if (global.at(meta_token.at(c).s) != "") {
+                    cerr << "Duplicate of global option in the description: " << c << endl;
+                    return 0;
+                }
+            }
+        }
+
         cout << "desc-format includes:" << endl;
         for (unsigned i = 0; i < desc_order.size(); i++) {
             cout << "\t" << meta_token.at(desc_order[i]).s << " preceded by: \"" << desc_pre[i] << "\"" << endl;
         }
 
-        cout << "\nTest #2 zakonczony" << endl;
-        return 0;
+        cout << "\nTest #2 zakonczony\n\n";
 
-        /*for (int i = 1; i < argc; i += 2) {
-            description prev, curr;
-            int mins, secs;
-            curr.number = 1;
-            desc_file >> mins;
-            desc_file.ignore(1, ':');
-            desc_file >> secs;
-            curr.start = mins * 60 + secs;
-            desc_file.ignore(1, '\\');
-            getline(desc_file, curr.title, '\\');
-            getline(desc_file, curr.artist, '\\');
-            getline(desc_file, curr.album);
+        map<string, string> prev, curr;
+        for (unsigned i = 0; i < metadata.size() - 3; i++) {
+            curr.insert(make_pair(metadata[i], global.at(metadata[i])));
+        }
+        for (unsigned i = metadata.size() - 3; i < metadata.size() - 1; i++) {
+            curr.insert(make_pair(metadata[i], ""));
+        }
 
-            for (int track = 2; ; track++) {
-                prev = curr;
-                curr.number = track;
-                desc_file >> mins;
-                desc_file.ignore(1, ':');
-                desc_file >> secs;
-                curr.start = mins * 60 + secs;
-                prev.length = curr.start - prev.start - 1;
-                desc_file.ignore(1, '\\');
-                getline(desc_file, curr.title, '\\');
-                getline(desc_file, curr.artist, '\\');
-                getline(desc_file, curr.album);
-                if (!desc_file.eof()) {
-                    system(string("ffmpeg -i \"" + string(argv[i]) + "\" -c copy -ss " + to_string(prev.start) + " -t " + \
-                            to_string(prev.length) + " -metadata title=\"" + prev.title + "\" -metadata author=\"" + \
-                            prev.artist + "\" -metadata album=\"" + prev.album + "\" -metadata track=\"" + \
-                            to_string(prev.number) + "\" \"" + prev.title + ".m4a\"").c_str());
-                } else {
-                    system(string("ffmpeg -i \"" + string(argv[i]) + "\" -c copy -ss " + to_string(prev.start) + " -t " + \
-                            to_string(prev.length) + " -metadata title=\"" + prev.title + "\" -metadata author=\"" + \
-                            prev.artist + "\" -metadata album=\"" + prev.album + "\" -metadata track=\"" + \
-                            to_string(prev.number) + "\" \"" + prev.title + ".m4a\"").c_str());
-                    system(string("ffmpeg -i \"" + string(argv[i]) + "\" -c copy -ss " + to_string(curr.start) + " -t " + \
-                            to_string(curr.length) + " -metadata title=\"" + curr.title + "\" -metadata author=\"" + \
-                            curr.artist + "\" -metadata album=\"" + curr.album + "\" -metadata track=\"" + \
-                            to_string(curr.number) + "\" \"" + curr.title + ".m4a\"").c_str());
-                    break;
+        ///MAIN LOOP
+        vector<char>::iterator number_pos = find(desc_order.begin(), desc_order.end(), 'k');
+        unsigned int track_number = 1;
+        if (number_pos == desc_order.end() && global.at("track-number") != "\032" && global.at("track-number") != "") {
+            track_number = stoul(global.at("track-number"));
+        }
+        //cout << desc_order.size() << "/" << desc_pre.size() << endl;
+        for (; desc_file.good(); track_number++/*bool i = true; i; i = false*/) {
+            prev = curr;
+            curr.at("track-number") = global.at("track-number");
+            for (unsigned i = 0; i < desc_order.size(); i++) {
+                if (desc_pre[i].size() > 1) {
+                    desc_file.ignore(desc_pre[i].size() - 1, '\n');
+                }
+                getline(desc_file, curr.at(meta_token.at(desc_order[i]).s), desc_pre[i + 1][0]);
+                switch (desc_order[i]) {
+                    case 'k':
+                    case 'y': {
+                        curr[meta_token.at(desc_order[i]).s] = to_string(stoi(curr.at(meta_token.at(desc_order[i]).s)));
+                        break;
+                    }
+                    case 'i': {
+                        //cout << "Encountered a start-time field: " << curr[meta_token.at(desc_order[i]).s] << endl;
+                        string::difference_type cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
+                                                            curr[meta_token.at(desc_order[i]).s].end(),
+                                                            ':');
+                        if (cnt == 2) {
+                            string::size_type colon_fst = curr[meta_token.at(desc_order[i]).s].find(':');
+                            string::size_type colon_snd = curr[meta_token.at(desc_order[i]).s].find(':', colon_fst + 1);
+                            curr[meta_token.at(desc_order[i]).s] =
+                                to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon_fst)) * 3600
+                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_fst + 1, colon_snd - colon_fst)) * 60
+                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_snd + 1)));
+                        } else if (cnt == 1) {
+                            string::size_type colon = curr[meta_token.at(desc_order[i]).s].find(':');
+                            curr[meta_token.at(desc_order[i]).s] =
+                                to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon)) * 60
+                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon + 1)));
+                        } else {
+                            curr[meta_token.at(desc_order[i]).s] = to_string(stoul(curr[meta_token.at(desc_order[i]).s]));
+                        }
+                        break;
+                    }
+                    default: {
+                        //cout << "Got: " << curr[meta_token.at(desc_order[i]).s] << endl;
+                        break;
+                    }
                 }
             }
-            desc_file.close();
+            if (curr["track-number"] == "") {
+                curr["track-number"] = to_string(track_number);
+            }
+            ///COMMAND
+            if (prev.at("start-time") != "") {
+                string input_name = argv[argc - 2];
+                prev.at("length") = to_string(stoul(curr.at("start-time")) - stoul(prev.at("start-time")) - 1);
+                string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + prev.at("start-time") + " -t "
+                                 + prev.at("length");
+                for (unsigned i = 0; i < metadata.size() - 3; i++) {
+                    if (prev.at(metadata[i]) != "\032") {
+                        command += " -metadata ";
+                        if (i == 2) {
+                            command += "album_artist";
+                        } else if (i == 6) {
+                            command += "track";
+                        } else {
+                            command += metadata[i];
+                        }
+                        command += "=\"" + prev.at(metadata[i]) + "\"";
+                    }
+                }
+                //hard-coded test
+                command += " \"" + prev.at("track-number") + ". " + prev.at("title") + " - " + prev.at("album")
+                           + input_name.substr(input_name.rfind('.'));
+                system(command.c_str());
+            }
+            /*for (unsigned i = 0; i < desc_order.size(); i++) {
+                cout << "\t" << meta_token.at(desc_order[i]).s << "=" << curr[meta_token.at(desc_order[i]).s] << "" << endl;
+            }*/
+        }
+        if (curr.at("start-time") != "") {
+            string input_name = argv[argc - 2];
+            curr.at("length") = to_string(stoul(curr.at("start-time")) - stoul(curr.at("start-time")) - 1);
+            //TODO: include offset implementation
+            string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + curr.at("start-time");
+            for (unsigned i = 0; i < metadata.size() - 3; i++) {
+                if (curr.at(metadata[i]) != "\032") {
+                    command += " -metadata ";
+                    if (i == 2) {
+                        command += "album_artist";
+                    } else if (i == 6) {
+                        command += "track";
+                    } else {
+                        command += metadata[i];
+                    }
+                    command += "=\"" + curr.at(metadata[i]) + "\"";
+                }
+            }
+            //TODO: unhardcode output filename
+            //TODO: strip illegal characters from output filename
+            command += " \"" + curr.at("track-number") + ". " + curr.at("title") + " - " + curr.at("album")
+                       + input_name.substr(input_name.rfind('.'));
+            system(command.c_str());
+        }
+        /*for (unsigned i = 0; i < metadata.size() - 1; i++) {
+            cout << "\t" << metadata[i] << "=" << curr[metadata[i]] << endl;
         }*/
+        cout << "\nTest #3 zakonczony" << endl;
     } else {
         print_help();
     }
