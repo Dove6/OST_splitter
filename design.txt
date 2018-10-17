@@ -28,7 +28,12 @@ Metadata options:
 	--synopsis[=synopsis]
 	 -l [lyrics]					specify global lyrics metadata
 	--lyrics[=lyrics]
-Using a metadata option without an argument instructs program to copy certain metadata from the input music file.
+By default, using a metadata option without an argument instructs program to leave it empty and not using a metadata option results in copying it from the source music file.
+By setting a special option:
+	 -x
+you can reverse this behavior: using a metadata option without an argument will make program to copy it from the source music file and not using a metadata option will leave it empty.
+	 
+Alternatively you can copy everything except of specified options which will get emptied if used without an argument.
 
 Format options:
 	 -o	format						output files names format (default: "k. n - a")

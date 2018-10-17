@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1539724488 source:e:\programowanie\ost_splitter\main.cpp
+1539815039 source:e:\programowanie\ost_splitter\main.cpp
 	<iostream>
 	<fstream>
 	<string>

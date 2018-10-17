@@ -40,7 +40,14 @@ void print_help()
             "    --synopsis[=synopsis]\n"
             "     -l [lyrics]\t\tspecify global lyrics metadata\n"
             "    --lyrics[=lyrics]\n"
-            "Using a metadata option without an argument instructs program to copy certain\nmetadata from the input music file.\n\n"
+            "By default, using a metadata option without an argument instructs program to\n"
+            "leave it empty and not using a metadata option results in copying it from the\n"
+            "source music file.\n"
+            "By setting a special option:\n"
+            "     -x\n"
+            "you can reverse this behavior: using a metadata option without an argument will\n"
+            "make program to copy it from the source music file and not using a metadata\n"
+            "option will leave it empty.\n\n"
             "Format options:\n"
             "     -o\tformat\t\t\toutput files names format (default: \"k. n - a\")\n"
             "    --output=format\n"
@@ -140,8 +147,19 @@ int main(int argc, char **argv)
     const map<const string, const char_int> meta_long = init.meta_long(metadata, options);
     const map<const char, const string_int> meta_token = init.meta_token(metadata, options);
     map<string, string> global;
+    bool copy_by_default = true;
+    //TODO: make a correction (done it inversely)
+    for (int i = 0; i < argc; i++) {
+        if (argv[i][0] == '-' && argv[i][1] == 'x' && strlen(argv[i]) == 2) {
+            copy_by_default = false;
+        }
+    }
     for (unsigned i = 0; i < metadata.size() - 3; i++) {
-        global.insert(make_pair(metadata[i], ""));
+        if (copy_by_default) {
+            global.insert(make_pair(metadata[i], ""));
+        } else {
+            global.insert(make_pair(metadata[i], "\032"));
+        }
     }
     for (unsigned i = 0; i < options.size() - 1; i++) {
         global.insert(make_pair(options[i], ""));
@@ -149,6 +167,7 @@ int main(int argc, char **argv)
     global.at("output") = "k. n - a";
     global.at("desc-format") = "k. n - i";
 
+    //TODO: more exceptions
     if (argc > 2) {
         if (system("ffmpeg -version") != 0) {
             cerr << "You have to put ffmpeg.exe in your environmental variable or where the program\nis located!";
@@ -173,25 +192,31 @@ int main(int argc, char **argv)
             for (int i = 1; i < argc - 2; i++) {
                 if (argv[i][0] == '-') {
                     if (strlen(argv[i]) == 2) {
-                        if (metadata.back().find(argv[i][1]) != string::npos) {
-                            global.at(meta_token.at(argv[i][1]).s) = "\032";
-                            open_token = meta_token.at(argv[i][1]).i;
-                        } else {
-                            string::size_type opt_pos = options.back().find(argv[i][1]);
-                            if (opt_pos != string::npos) {
-                                if (i < argc - 3) {
-                                    global.at(options[opt_pos]) = argv[++i];
+                        if (argv[i][1] != 'x') {
+                            if (metadata.back().find(argv[i][1]) != string::npos) {
+                                if (copy_by_default) {
+                                    global.at(meta_token.at(argv[i][1]).s) = "";
                                 } else {
-                                    throw invalid_argument(argv[i]);
+                                    global.at(meta_token.at(argv[i][1]).s) = "\032";
                                 }
+                                open_token = meta_token.at(argv[i][1]).i;
                             } else {
-                                if (open_token != -1) {
-                                    global.at(metadata[open_token]) = argv[i];
+                                string::size_type opt_pos = options.back().find(argv[i][1]);
+                                if (opt_pos != string::npos) {
+                                    if (i < argc - 3) {
+                                        global.at(options[opt_pos]) = argv[++i];
+                                    } else {
+                                        throw invalid_argument(argv[i]);
+                                    }
                                 } else {
-                                    throw invalid_argument(argv[i]);
+                                    if (open_token != -1) {
+                                        global.at(metadata[open_token]) = argv[i];
+                                    } else {
+                                        throw invalid_argument(argv[i]);
+                                    }
                                 }
+                                open_token = -1;
                             }
-                            open_token = -1;
                         }
                     } else if (argv[i][1] == '-') {
                         string long_option(argv[i] + 2);
@@ -203,7 +228,11 @@ int main(int argc, char **argv)
                                 if (eq_mark != string::npos) {
                                     global.at(metadata[i]) = long_option.substr(eq_mark + 1);
                                 } else {
-                                    global.at(metadata[i]) = "\032";
+                                    if (copy_by_default) {
+                                        global.at(metadata[i]) = "";
+                                    } else {
+                                        global.at(metadata[i]) = "\032";
+                                    }
                                 }
                                 open_token = -1;
                             }
@@ -215,7 +244,11 @@ int main(int argc, char **argv)
                                     if (eq_mark != string::npos) {
                                         global.at(options[i]) = long_option.substr(eq_mark + 1);
                                     } else {
-                                        global.at(options[i]) = "\032";
+                                        if (copy_by_default) {
+                                            global.at(options[i]) = "";
+                                        } else {
+                                            global.at(options[i]) = "\032";
+                                        }
                                     }
                                     open_token = -1;
                                 }
@@ -258,7 +291,7 @@ int main(int argc, char **argv)
             }
         }*/
 
-        cout << "global:\n"
+        /*cout << "global:\n"
             "\ttitle=" << global.at("title") << "\n"
             "\tartist=" << global.at("artist") << "\n"
             "\talbum-artist=" << global.at("album-artist") << "\n"
@@ -278,7 +311,7 @@ int main(int argc, char **argv)
             "\toffset-pre=" << global.at("offset-pre") << "\n"
             "\toffset-post=" << global.at("offset-post") << "\n";
 
-        cout << "\nTest #1 zakonczony\n\n";
+        cout << "\nTest #1 zakonczony\n\n";*/
 
         for (unsigned i = 0; i < metadata.back().size() - 1; i++) {
             string::difference_type cnt = count(global.at("desc-format").begin(), global.at("desc-format").end(), metadata.back().at(i));
@@ -287,21 +320,18 @@ int main(int argc, char **argv)
                 return 0;
             }
         }
+
         vector<char> desc_order;
         vector<string> desc_pre;
         desc_order.reserve(15);
         desc_pre.reserve(16);
         {
             unsigned i = 0;
-            for (; i < global.at("desc-format").size(); ) {
-                string::size_type token_pos = global.at("desc-format").find_first_of(metadata.back(), i);
-                if (token_pos != string::npos) {
-                    desc_order.push_back(global.at("desc-format")[token_pos]);
-                    desc_pre.push_back(global.at("desc-format").substr(i, token_pos - i));
-                    i = token_pos + 1;
-                } else {
-                    i += global.at("desc-format").size();
-                }
+            string::size_type token_pos;
+            while ((token_pos = global.at("desc-format").find_first_of(metadata.back(), i)) != string::npos) {
+                desc_order.push_back(global.at("desc-format")[token_pos]);
+                desc_pre.push_back(global.at("desc-format").substr(i, token_pos - i));
+                i = token_pos + 1;
             }
             desc_pre.push_back(global.at("desc-format").substr(i));
             desc_pre.back() += '\n';
@@ -316,21 +346,12 @@ int main(int argc, char **argv)
             }
         }
 
-        for (char c : desc_order) {
-            if (c != meta_long.at("start-time").c) {
-                if (global.at(meta_token.at(c).s) != "") {
-                    cerr << "Duplicate of global option in the description: " << c << endl;
-                    return 0;
-                }
-            }
-        }
-
-        cout << "desc-format includes:" << endl;
+        /*cout << "desc-format includes:" << endl;
         for (unsigned i = 0; i < desc_order.size(); i++) {
             cout << "\t" << meta_token.at(desc_order[i]).s << " preceded by: \"" << desc_pre[i] << "\"" << endl;
         }
 
-        cout << "\nTest #2 zakonczony\n\n";
+        cout << "\nTest #2 zakonczony\n\n";*/
 
         map<string, string> prev, curr;
         for (unsigned i = 0; i < metadata.size() - 3; i++) {
@@ -340,14 +361,44 @@ int main(int argc, char **argv)
             curr.insert(make_pair(metadata[i], ""));
         }
 
+        ///OUTPUT FILENAME FORMAT
+        vector<char> fout_order;
+        vector<string> fout_pre;
+        fout_order.reserve(15);
+        fout_pre.reserve(16);
+        {
+            unsigned i = 0;
+            string::size_type token_pos;
+            while ((token_pos = global.at("output").find_first_of(metadata.back(), i)) != string::npos) {
+                fout_order.push_back(global.at("output")[token_pos]);
+                fout_pre.push_back(global.at("output").substr(i, token_pos - i));
+                i = token_pos + 1;
+            }
+            fout_pre.push_back(global.at("output").substr(i));
+            fout_pre.back() += '\n';
+        }
+
+        {
+            string::difference_type cnt = count(fout_pre.begin() + 1, fout_pre.end() - 1, "");
+            if (cnt > 0) {
+                cerr << "Invalid argument: " << global.at("output") << endl;
+                cerr << "Please just separate the escape characters and let me sleep tonight ;-;" << endl;
+                return 0;
+            }
+        }
+        /*cout << "output includes:" << endl;
+        for (unsigned i = 0; i < fout_order.size(); i++) {
+            cout << "\t" << meta_token.at(fout_order[i]).s << " preceded by: \"" << fout_pre[i] << "\"" << endl;
+        }*/
+
         ///MAIN LOOP
         vector<char>::iterator number_pos = find(desc_order.begin(), desc_order.end(), 'k');
         unsigned int track_number = 1;
         if (number_pos == desc_order.end() && global.at("track-number") != "\032" && global.at("track-number") != "") {
             track_number = stoul(global.at("track-number"));
         }
-        //cout << desc_order.size() << "/" << desc_pre.size() << endl;
         for (; desc_file.good(); track_number++/*bool i = true; i; i = false*/) {
+            //TODO: support for disgusting spaces
             prev = curr;
             curr.at("track-number") = global.at("track-number");
             for (unsigned i = 0; i < desc_order.size(); i++) {
@@ -362,7 +413,6 @@ int main(int argc, char **argv)
                         break;
                     }
                     case 'i': {
-                        //cout << "Encountered a start-time field: " << curr[meta_token.at(desc_order[i]).s] << endl;
                         string::difference_type cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
                                                             curr[meta_token.at(desc_order[i]).s].end(),
                                                             ':');
@@ -384,24 +434,29 @@ int main(int argc, char **argv)
                         break;
                     }
                     default: {
-                        //cout << "Got: " << curr[meta_token.at(desc_order[i]).s] << endl;
                         break;
                     }
                 }
             }
-            if (curr["track-number"] == "") {
+            if (curr["track-number"] == "" || curr["track-number"] == "\032") {
                 curr["track-number"] = to_string(track_number);
             }
             ///COMMAND
             if (prev.at("start-time") != "") {
                 string input_name = argv[argc - 2];
                 prev.at("length") = to_string(stoul(curr.at("start-time")) - stoul(prev.at("start-time")) - 1);
+                if (global.at("offset-pre") != "") {
+                    prev.at("start-time") = to_string(stoi(prev.at("start-time")) + stoi(global.at("offset-pre")));
+                }
+                if (global.at("offset-post") != "") {
+                    prev.at("length") = to_string(stoi(prev.at("length")) - stoi(global.at("offset-pre")) - stoi(global.at("offset-post")));
+                }
                 string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + prev.at("start-time") + " -t "
                                  + prev.at("length");
                 for (unsigned i = 0; i < metadata.size() - 3; i++) {
                     if (prev.at(metadata[i]) != "\032") {
                         command += " -metadata ";
-                        if (i == 2) {
+                        if (i == 1) {
                             command += "album_artist";
                         } else if (i == 6) {
                             command += "track";
@@ -411,24 +466,44 @@ int main(int argc, char **argv)
                         command += "=\"" + prev.at(metadata[i]) + "\"";
                     }
                 }
-                //hard-coded test
-                command += " \"" + prev.at("track-number") + ". " + prev.at("title") + " - " + prev.at("album")
-                           + input_name.substr(input_name.rfind('.'));
-                system(command.c_str());
+                ///OUTPUT FILENAME
+                string foutname = "";
+                for (unsigned i = 0; i < fout_order.size(); i++) {
+                    if (prev.at(meta_token.at(fout_order[i]).s) != "\032") {
+                        foutname += fout_pre[i];
+                        foutname += prev.at(meta_token.at(fout_order[i]).s);
+                    }
+                }
+                {
+                    unsigned i;
+                    while ((i = foutname.find_first_of("<>:\"/\\|?*", i + 1)) != string::npos) {
+                        foutname.erase(i, 1);
+                    }
+                }
+                command += " \"" + foutname + input_name.substr(input_name.rfind('.')) + "\"";
+                //cout << command << endl;
+                //
+                //cout << "\nTest #4 zakonczony" << endl;
+                int i;
+                if ((i = system(command.c_str())) != 0) {
+                    throw runtime_error(to_string(i));
+                }
             }
-            /*for (unsigned i = 0; i < desc_order.size(); i++) {
-                cout << "\t" << meta_token.at(desc_order[i]).s << "=" << curr[meta_token.at(desc_order[i]).s] << "" << endl;
-            }*/
         }
         if (curr.at("start-time") != "") {
             string input_name = argv[argc - 2];
             curr.at("length") = to_string(stoul(curr.at("start-time")) - stoul(curr.at("start-time")) - 1);
-            //TODO: include offset implementation
+            if (global.at("offset-pre") != "") {
+                curr.at("start-time") = to_string(stoi(curr.at("start-time")) + stoi(global.at("offset-pre")));
+            }
+            if (global.at("offset-post") != "") {
+                curr.at("length") = to_string(stoi(curr.at("length")) - stoi(global.at("offset-pre")) - stoi(global.at("offset-post")));
+            }
             string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + curr.at("start-time");
             for (unsigned i = 0; i < metadata.size() - 3; i++) {
                 if (curr.at(metadata[i]) != "\032") {
                     command += " -metadata ";
-                    if (i == 2) {
+                    if (i == 1) {
                         command += "album_artist";
                     } else if (i == 6) {
                         command += "track";
@@ -438,16 +513,30 @@ int main(int argc, char **argv)
                     command += "=\"" + curr.at(metadata[i]) + "\"";
                 }
             }
-            //TODO: unhardcode output filename
-            //TODO: strip illegal characters from output filename
-            command += " \"" + curr.at("track-number") + ". " + curr.at("title") + " - " + curr.at("album")
-                       + input_name.substr(input_name.rfind('.'));
-            system(command.c_str());
+            ///OUTPUT FILENAME
+            string foutname = "";
+            for (unsigned i = 0; i < fout_order.size(); i++) {
+                if (curr.at(meta_token.at(fout_order[i]).s) != "\032") {
+                    foutname += fout_pre[i];
+                    foutname += curr.at(meta_token.at(fout_order[i]).s);
+                }
+            }
+            {
+                unsigned i;
+                while ((i = foutname.find_first_of("<>:\"/\\|?*", i + 1)) != string::npos) {
+                    foutname.erase(i, 1);
+                }
+            }
+            command += " \"" + foutname + input_name.substr(input_name.rfind('.')) + "\"";
+            //cout << command << endl;
+            //
+            //cout << "\nTest #4 zakonczony" << endl;
+            int i;
+            if ((i = system(command.c_str())) != 0) {
+                throw runtime_error(to_string(i));
+            }
         }
-        /*for (unsigned i = 0; i < metadata.size() - 1; i++) {
-            cout << "\t" << metadata[i] << "=" << curr[metadata[i]] << endl;
-        }*/
-        cout << "\nTest #3 zakonczony" << endl;
+        //cout << "\nTest #3 zakonczony" << endl;
     } else {
         print_help();
     }
