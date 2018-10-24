@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1539815039 source:e:\programowanie\ost_splitter\main.cpp
+1540398079 source:e:\programowanie\ost_splitter\main.cpp
 	<iostream>
 	<fstream>
 	<string>
@@ -8,4 +8,5 @@
 	<vector>
 	<map>
 	<algorithm>
+	<windows.h>
 

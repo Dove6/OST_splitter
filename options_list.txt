@@ -1,0 +1,35 @@
+-t
+-b
+-a
+-G
+-c
+-y
+-k
+-m
+-g
+-r
+-d
+-s
+-l
+-o
+-f
+-p
+-e
+
+--artist[=artist]               8
+--album-artist[=album-artist]   14
+--album[=album]                 7
+--grouping[=grouping]           10
+--composer[=composer]           10
+--year[=year]                   6
+--track-number[=number]         14
+--comment[=comment]             9
+--genre[=genre]                 7
+--copyright[=copyright]	        11
+--description[=description]	    13
+--synopsis[=synopsis]           10
+--lyrics[=lyrics]               8
+--output[=format]               8
+--desc-format[=format]          13
+--offset-pre[=offset]           12
+--offset-post[=offset]          13

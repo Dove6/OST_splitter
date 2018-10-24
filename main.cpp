@@ -6,8 +6,18 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <windows.h>
 
 using namespace std;
+
+wstring u8_to_u16(const string &u8)
+{
+    int buffer_size = MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, NULL, 0);
+    wchar_t buffer[buffer_size];
+    MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, buffer, buffer_size);
+    wstring u16(buffer);
+    return u16;
+}
 
 void print_help()
 {
@@ -46,7 +56,7 @@ void print_help()
             "By setting a special option:\n"
             "     -x\n"
             "you can reverse this behavior: using a metadata option without an argument will\n"
-            "make program to copy it from the source music file and not using a metadata\n"
+            "make program copy it from the source music file and not using a metadata\n"
             "option will leave it empty.\n\n"
             "Format options:\n"
             "     -o\tformat\t\t\toutput files names format (default: \"k. n - a\")\n"
@@ -148,7 +158,6 @@ int main(int argc, char **argv)
     const map<const char, const string_int> meta_token = init.meta_token(metadata, options);
     map<string, string> global;
     bool copy_by_default = true;
-    //TODO: make a correction (done it inversely)
     for (int i = 0; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 'x' && strlen(argv[i]) == 2) {
             copy_by_default = false;
@@ -156,9 +165,9 @@ int main(int argc, char **argv)
     }
     for (unsigned i = 0; i < metadata.size() - 3; i++) {
         if (copy_by_default) {
-            global.insert(make_pair(metadata[i], ""));
-        } else {
             global.insert(make_pair(metadata[i], "\032"));
+        } else {
+            global.insert(make_pair(metadata[i], ""));
         }
     }
     for (unsigned i = 0; i < options.size() - 1; i++) {
@@ -169,7 +178,7 @@ int main(int argc, char **argv)
 
     //TODO: more exceptions
     if (argc > 2) {
-        if (system("ffmpeg -version") != 0) {
+        if (system("ffmpeg -version >NUL 2>&1") != 0) {
             cerr << "You have to put ffmpeg.exe in your environmental variable or where the program\nis located!";
             return 0;
         }
@@ -376,6 +385,7 @@ int main(int argc, char **argv)
             }
             fout_pre.push_back(global.at("output").substr(i));
             fout_pre.back() += '\n';
+            i = token_pos + 1;
         }
 
         {
@@ -390,6 +400,16 @@ int main(int argc, char **argv)
         for (unsigned i = 0; i < fout_order.size(); i++) {
             cout << "\t" << meta_token.at(fout_order[i]).s << " preceded by: \"" << fout_pre[i] << "\"" << endl;
         }*/
+
+        //UTF-8 BOM skip
+        char possible_BOM[3];
+        const char BOM[3] = {'\xEF', '\xBB', '\xBF'};
+        desc_file.read(possible_BOM, 3);
+        for (int i = 0; i < 3; i++) {
+            if (possible_BOM[i] != BOM[i]) {
+                desc_file.seekg(0);
+            }
+        }
 
         ///MAIN LOOP
         vector<char>::iterator number_pos = find(desc_order.begin(), desc_order.end(), 'k');
@@ -409,7 +429,12 @@ int main(int argc, char **argv)
                 switch (desc_order[i]) {
                     case 'k':
                     case 'y': {
-                        curr[meta_token.at(desc_order[i]).s] = to_string(stoi(curr.at(meta_token.at(desc_order[i]).s)));
+                        try {
+                            curr[meta_token.at(desc_order[i]).s] = to_string(stoi(curr.at(meta_token.at(desc_order[i]).s)));
+                        } catch (invalid_argument exc) {
+                            cout << "Invalid argument: " << curr.at(meta_token.at(desc_order[i]).s) << endl;
+                            return 0;
+                        }
                         break;
                     }
                     case 'i': {
@@ -449,10 +474,11 @@ int main(int argc, char **argv)
                     prev.at("start-time") = to_string(stoi(prev.at("start-time")) + stoi(global.at("offset-pre")));
                 }
                 if (global.at("offset-post") != "") {
-                    prev.at("length") = to_string(stoi(prev.at("length")) - stoi(global.at("offset-pre")) - stoi(global.at("offset-post")));
+                    prev.at("length") = to_string(stoi(prev.at("length")) - stoi(global.at("offset-pre"))
+                                        - stoi(global.at("offset-post")));
                 }
-                string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + prev.at("start-time") + " -t "
-                                 + prev.at("length");
+                string command = "ffmpeg -loglevel warning -i \"" + input_name + "\" -c copy -ss " + prev.at("start-time")
+                                 + " -t " + prev.at("length");
                 for (unsigned i = 0; i < metadata.size() - 3; i++) {
                     if (prev.at(metadata[i]) != "\032") {
                         command += " -metadata ";
@@ -485,8 +511,16 @@ int main(int argc, char **argv)
                 //
                 //cout << "\nTest #4 zakonczony" << endl;
                 int i;
-                if ((i = system(command.c_str())) != 0) {
-                    throw runtime_error(to_string(i));
+                try {
+                    if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
+                        throw runtime_error(to_string(i));
+                    }
+                    //cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
+                    //windows
+                    _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
+                             + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+                } catch (runtime_error exc) {
+                    cout << "Skipping \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file...\n";
                 }
             }
         }
@@ -497,9 +531,10 @@ int main(int argc, char **argv)
                 curr.at("start-time") = to_string(stoi(curr.at("start-time")) + stoi(global.at("offset-pre")));
             }
             if (global.at("offset-post") != "") {
-                curr.at("length") = to_string(stoi(curr.at("length")) - stoi(global.at("offset-pre")) - stoi(global.at("offset-post")));
+                curr.at("length") = to_string(stoi(curr.at("length")) - stoi(global.at("offset-pre"))
+                                    - stoi(global.at("offset-post")));
             }
-            string command = "ffmpeg -i \"" + input_name + "\" -c copy -ss " + curr.at("start-time");
+            string command = "ffmpeg -loglevel warning -i \"" + input_name + "\" -c copy -ss " + curr.at("start-time");
             for (unsigned i = 0; i < metadata.size() - 3; i++) {
                 if (curr.at(metadata[i]) != "\032") {
                     command += " -metadata ";
@@ -532,8 +567,16 @@ int main(int argc, char **argv)
             //
             //cout << "\nTest #4 zakonczony" << endl;
             int i;
-            if ((i = system(command.c_str())) != 0) {
-                throw runtime_error(to_string(i));
+            try {
+                if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
+                    throw runtime_error(to_string(i));
+                }
+                cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
+                //windows
+                _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
+                         + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+            } catch (runtime_error exc) {
+                cout << "Skipping \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file...\n";
             }
         }
         //cout << "\nTest #3 zakonczony" << endl;
