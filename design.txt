@@ -63,3 +63,7 @@ Offset options:
 	--offset-pre=offset
 	 -e	offset						offset in second before the end
 	--offset-post=offset
+	
+Other options:
+	 -v								enable verbose console log
+	--verbose

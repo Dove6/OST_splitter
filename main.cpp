@@ -6,18 +6,22 @@
 #include <vector>
 #include <map>
 #include <algorithm>
-#include <windows.h>
+#ifdef _WIN32
+    #include <windows.h>
+#endif
 
 using namespace std;
 
-wstring u8_to_u16(const string &u8)
-{
-    int buffer_size = MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, NULL, 0);
-    wchar_t buffer[buffer_size];
-    MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, buffer, buffer_size);
-    wstring u16(buffer);
-    return u16;
-}
+#ifdef _WIN32
+    wstring u8_to_u16(const string &u8)
+    {
+        int buffer_size = MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, NULL, 0);
+        wchar_t buffer[buffer_size];
+        MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), -1, buffer, buffer_size);
+        wstring u16(buffer);
+        return u16;
+    }
+#endif
 
 void print_help()
 {
@@ -154,6 +158,7 @@ int main(int argc, char **argv)
                                     "offset-pre", //offset before each track (in seconds)
                                     "offset-post", //offset after the end of each track (in seconds)}
                                     "ofpe"};
+    vector<int> possible_spaces = {0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13};
     const map<const string, const char_int> meta_long = init.meta_long(metadata, options);
     const map<const char, const string_int> meta_token = init.meta_token(metadata, options);
     map<string, string> global;
@@ -443,10 +448,16 @@ int main(int argc, char **argv)
                             string::difference_type cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
                                                                 curr[meta_token.at(desc_order[i]).s].end(),
                                                                 time_separator);
-                            if (cnt )
+                            if (cnt == 0) {
+                                time_separator = '.';
+                                cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
+                                            curr[meta_token.at(desc_order[i]).s].end(),
+                                            time_separator);
+                            }
+
                             if (cnt == 2) {
-                                string::size_type colon_fst = curr[meta_token.at(desc_order[i]).s].find(':');
-                                string::size_type colon_snd = curr[meta_token.at(desc_order[i]).s].find(':', colon_fst + 1);
+                                string::size_type colon_fst = curr[meta_token.at(desc_order[i]).s].find(time_separator);
+                                string::size_type colon_snd = curr[meta_token.at(desc_order[i]).s].find(time_separator, colon_fst + 1);
                                 curr[meta_token.at(desc_order[i]).s] =
                                     to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon_fst)) * 3600
                                             + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_fst + 1, colon_snd - colon_fst)) * 60
@@ -519,16 +530,25 @@ int main(int argc, char **argv)
                 //cout << "\nTest #4 zakonczony" << endl;
                 int i;
                 try {
-                    if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
-                        throw runtime_error(to_string(i));
-                    }
-                    //cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
-                    //windows
-                    _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
-                             + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+                    #ifdef _WIN32
+                        if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
+                            throw runtime_error(to_string(i));
+                        }
+                        _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
+                                 + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+                    #elif
+                        if ((i = system(command.c_str())) != 0) {
+                            throw runtime_error(to_string(i));
+                        }
+                        cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
+                    #endif
                 } catch (runtime_error exc) {
-                    _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
-                              + L"\" file...\n").c_str());
+                    #ifdef _WIN32
+                        _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
+                                 + L"\" file...\n").c_str());
+                    #elif
+                        system("Skipping \"" + foutname + input_name.substr(input_name.rfind('.')) + "\" file...")
+                    #endif
                 }
             }
         }
@@ -576,16 +596,25 @@ int main(int argc, char **argv)
             //cout << "\nTest #4 zakonczony" << endl;
             int i;
             try {
-                if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
-                    throw runtime_error(to_string(i));
-                }
-                //cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
-                //windows
-                _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
-                         + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+                #ifdef _WIN32
+                    if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
+                        throw runtime_error(to_string(i));
+                    }
+                    _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
+                             + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
+                #elif
+                    if ((i = system(command.c_str())) != 0) {
+                        throw runtime_error(to_string(i));
+                    }
+                    cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
+                #endif
             } catch (runtime_error exc) {
-                _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
-                          + L"\" file...\n").c_str());
+                #ifdef _WIN32
+                    _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
+                             + L"\" file...\n").c_str());
+                #elif
+                    system("Skipping \"" + foutname + input_name.substr(input_name.rfind('.')) + "\" file...")
+                #endif
             }
         }
         //cout << "\nTest #3 zakonczony" << endl;
