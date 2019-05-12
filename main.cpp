@@ -36,7 +36,7 @@ void print_help()
             "    --composer[=composer]\n"
             "     -y [year]\t\t\tspecify global year metadata\n"
             "    --year[=year]\n"
-            "     -k number\t\tspecify the first track number (default: 1)\n"
+            "     -k number\t\t\tspecify the first track number (default: 1)\n"
             "    --track-number=number\n"
             "     -m [comment]\t\tspecify global comment metadata\n"
             "    --comment[=comment]\n"
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
                 }
             }
         } catch (invalid_argument exc) {
-            cerr << "Wrong argument: " << exc.what();
+            cerr << "Invalid argument: " << exc.what() << endl;
             return 0;
         }
 
@@ -415,7 +415,12 @@ int main(int argc, char **argv)
         vector<char>::iterator number_pos = find(desc_order.begin(), desc_order.end(), 'k');
         unsigned int track_number = 1;
         if (number_pos == desc_order.end() && global.at("track-number") != "\032" && global.at("track-number") != "") {
-            track_number = stoul(global.at("track-number"));
+            try {
+                track_number = stoul(global.at("track-number"));
+            } catch (invalid_argument exc) {
+                cerr << "Invalid argument: " << curr.at(global.at("track-number")) << endl;
+                return 0;
+            }
         }
         for (; desc_file.good(); track_number++/*bool i = true; i; i = false*/) {
             //TODO: support for disgusting spaces
@@ -426,41 +431,43 @@ int main(int argc, char **argv)
                     desc_file.ignore(desc_pre[i].size() - 1, '\n');
                 }
                 getline(desc_file, curr.at(meta_token.at(desc_order[i]).s), desc_pre[i + 1][0]);
-                switch (desc_order[i]) {
-                    case 'k':
-                    case 'y': {
-                        try {
+                try {
+                    switch (desc_order[i]) {
+                        case 'k':
+                        case 'y': {
                             curr[meta_token.at(desc_order[i]).s] = to_string(stoi(curr.at(meta_token.at(desc_order[i]).s)));
-                        } catch (invalid_argument exc) {
-                            cout << "Invalid argument: " << curr.at(meta_token.at(desc_order[i]).s) << endl;
-                            return 0;
+                            break;
                         }
-                        break;
-                    }
-                    case 'i': {
-                        string::difference_type cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
-                                                            curr[meta_token.at(desc_order[i]).s].end(),
-                                                            ':');
-                        if (cnt == 2) {
-                            string::size_type colon_fst = curr[meta_token.at(desc_order[i]).s].find(':');
-                            string::size_type colon_snd = curr[meta_token.at(desc_order[i]).s].find(':', colon_fst + 1);
-                            curr[meta_token.at(desc_order[i]).s] =
-                                to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon_fst)) * 3600
-                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_fst + 1, colon_snd - colon_fst)) * 60
-                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_snd + 1)));
-                        } else if (cnt == 1) {
-                            string::size_type colon = curr[meta_token.at(desc_order[i]).s].find(':');
-                            curr[meta_token.at(desc_order[i]).s] =
-                                to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon)) * 60
-                                        + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon + 1)));
-                        } else {
-                            curr[meta_token.at(desc_order[i]).s] = to_string(stoul(curr[meta_token.at(desc_order[i]).s]));
+                        case 'i': {
+                            char time_separator = ':';
+                            string::difference_type cnt = count(curr[meta_token.at(desc_order[i]).s].begin(),
+                                                                curr[meta_token.at(desc_order[i]).s].end(),
+                                                                time_separator);
+                            if (cnt )
+                            if (cnt == 2) {
+                                string::size_type colon_fst = curr[meta_token.at(desc_order[i]).s].find(':');
+                                string::size_type colon_snd = curr[meta_token.at(desc_order[i]).s].find(':', colon_fst + 1);
+                                curr[meta_token.at(desc_order[i]).s] =
+                                    to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon_fst)) * 3600
+                                            + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_fst + 1, colon_snd - colon_fst)) * 60
+                                            + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon_snd + 1)));
+                            } else if (cnt == 1) {
+                                string::size_type colon = curr[meta_token.at(desc_order[i]).s].find(':');
+                                curr[meta_token.at(desc_order[i]).s] =
+                                    to_string(stoul(curr[meta_token.at(desc_order[i]).s].substr(0, colon)) * 60
+                                            + stoul(curr[meta_token.at(desc_order[i]).s].substr(colon + 1)));
+                            } else {
+                                curr[meta_token.at(desc_order[i]).s] = to_string(stoul(curr[meta_token.at(desc_order[i]).s]));
+                            }
+                            break;
                         }
-                        break;
+                        default: {
+                            break;
+                        }
                     }
-                    default: {
-                        break;
-                    }
+                } catch (invalid_argument exc) {
+                    cerr << "Invalid argument: " << curr.at(meta_token.at(desc_order[i]).s) << endl;
+                    return 0;
                 }
             }
             if (curr["track-number"] == "" || curr["track-number"] == "\032") {
@@ -520,7 +527,8 @@ int main(int argc, char **argv)
                     _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
                              + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
                 } catch (runtime_error exc) {
-                    cout << "Skipping \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file...\n";
+                    _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
+                              + L"\" file...\n").c_str());
                 }
             }
         }
@@ -557,7 +565,7 @@ int main(int argc, char **argv)
                 }
             }
             {
-                unsigned i;
+                unsigned i = 0;
                 while ((i = foutname.find_first_of("<>:\"/\\|?*", i + 1)) != string::npos) {
                     foutname.erase(i, 1);
                 }
@@ -571,12 +579,13 @@ int main(int argc, char **argv)
                 if ((i = _wsystem(u8_to_u16(command).c_str())) != 0) {
                     throw runtime_error(to_string(i));
                 }
-                cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
+                //cout << "Successfully created \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file.\n";
                 //windows
                 _wsystem((L"echo Successfully created \"" + u8_to_u16(foutname)
                          + u8_to_u16(input_name.substr(input_name.rfind('.'))) + L"\" file.\n").c_str());
             } catch (runtime_error exc) {
-                cout << "Skipping \"" << foutname << input_name.substr(input_name.rfind('.')) << "\" file...\n";
+                _wsystem((L"echo Skipping \"" + u8_to_u16(foutname) + u8_to_u16(input_name.substr(input_name.rfind('.')))
+                          + L"\" file...\n").c_str());
             }
         }
         //cout << "\nTest #3 zakonczony" << endl;
